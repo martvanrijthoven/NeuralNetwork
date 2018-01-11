@@ -1,28 +1,10 @@
 import numpy as np
 
+lrelu_activation = {'transfer': lambda x: np.maximum(x, 0.1 * x), 'diff': lambda x: (x < 0) * 0.1 + (x >= 0)}
 
-#  relu functions
-def relu(x):
-    return np.maximum(x, 0)
+relu_activation = {'transfer': lambda x: np.maximum(x, 0), 'diff': lambda x: (x > 0)}
 
+tanh_activation = {'transfer': lambda x: np.tanh(x), 'diff': lambda x: 1.0 - np.tanh(x)**2}
 
-def relu_diff(x):
-    return (x > 0)
-
-
-# sigmoid functions
-def sigmoid(x):
-    return 1.0 / (1.0 + np.exp(-x))
-
-
-def sigmoid_diff(x):
-    return sigmoid(x) * (1 - sigmoid(x))
-
-
-# tanh functions
-def tanh(x):
-    return np.tanh(x)
-
-
-def tanh_diff(x):
-    return 1.0 - np.tanh(x)**2
+sigmoid_activation = {'transfer': lambda x: 1.0 / (1.0 + np.exp(-x)),
+                      'diff': lambda x: 1.0 / (1.0 + np.exp(-x)) * (1 - 1.0 / (1.0 + np.exp(-x)))}

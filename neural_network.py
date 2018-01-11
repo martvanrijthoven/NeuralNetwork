@@ -1,12 +1,17 @@
 import numpy as np
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 
-from activations import relu, relu_diff
+from activations import relu_activation
 
 
 class NeuralNetwork():
 
-    def __init__(self, layers):
+    def __init__(self, layers, batch_generator, activation=relu_activation):
+
+        # batch_generator
+        self.batch_generator = batch_generator
+
+        # activation function
+        self.activation = activation
 
         # architecture
         self.layers = layers
@@ -22,7 +27,7 @@ class NeuralNetwork():
         # init biases
         self.biases = [0.005 * np.random.rand(b) for b in layers[1:]]
 
-    def _forward_pass(self, input, verbose=False):
+    def _forward_pass(self, input):
 
         # inputs to the layers
         inputs = []
@@ -33,7 +38,7 @@ class NeuralNetwork():
         # forward calculations
         for i in range(self.n_layers - 1):
             inputs.append(activations[i].dot(self.weights[i]) + self.biases[i])
-            activations.append(relu(inputs[-1]))
+            activations.append(self.activation['transfer']((inputs[-1])))
 
         return {'inputs': inputs, 'activations': activations}
 
@@ -47,24 +52,37 @@ class NeuralNetwork():
         error = forward['activations'][-1] - y
 
         # deltas output layer
-        delta_w[-1] += forward['activations'][-2].transpose().dot(error * relu_diff(forward['inputs'][-1]))
+        delta_w[-1] += forward['activations'][-2].transpose().dot(error * self.activation['diff'](forward['inputs'][-1]))
         delta_b[-1] += np.sum(error, axis=0)
 
         # error hidden layer
         for l in range(self.n_layers - 3, -1, -1):
             error = error.dot(self.weights[l + 1].transpose())
             # deltas hidden layer
-            delta_w[l] += forward['activations'][l].transpose().dot(error * relu_diff(forward['inputs'][l]))
+            delta_w[l] += forward['activations'][l].transpose().dot(error * self.activation['diff'](forward['inputs'][l]))
             delta_b[l] += np.sum(error, axis=0)
 
         return delta_w, delta_b
 
-    def train(self, batch_generator, learning_rate=0.02):
+    def _evaluation(self, x, y):
 
-        # epoch loop
-        for e in range(int(len(batch_generator.training_data) / batch_generator.batch_size)):
+        # placeholders
+        predictions = []
+        true_labels = []
+
+        # inference
+        for i in range(x.shape[0]):
+            predictions.append(self.inference(np.atleast_2d(x[i])))
+            true_labels.append(y[i])
+
+        return predictions, true_labels
+
+    def train(self, learning_rate=0.001):
+
+        # loop over all training example
+        for e in range(int(len(self.batch_generator.training_data) / self.batch_generator.batch_size)):
             # batch data
-            x_batch, y_batch = batch_generator.batch()
+            x_batch, y_batch = self.batch_generator.batch()
 
             # deltas
             delta_w, delta_b = self._backward_pass(self._forward_pass(x_batch), y_batch)
@@ -74,38 +92,12 @@ class NeuralNetwork():
                 self.weights[l] -= learning_rate * delta_w[l]
                 self.biases[l] -= learning_rate * delta_b[l]
 
-    def validation(self, batch_generator):
+    def validation(self):
+        return self._evaluation(*self.batch_generator.validation_data)
 
-        # validation data
-        x_val, y_val = batch_generator.validation_data
-
-        # placeholders
-        predictions = []
-        true_labels = []
-
-        # inferece
-        for i in range(x_val.shape[0]):
-            predictions.append(self.inference(np.atleast_2d(x_val[i])))
-            true_labels.append(np.argmax(y_val[i]))
-
-        return accuracy_score(true_labels, predictions)
-
-    def test(self, batch_generator):
-
-        # test data
-        x_test, y_test = batch_generator.test_data
-
-        # placeholders
-        predictions = []
-        true_labels = []
-
-        for i in range(x_test.shape[0]):
-            predictions.append(self.inference(np.atleast_2d(x_test[i])))
-            true_labels.append(np.argmax(y_test[i]))
-
-        return confusion_matrix(true_labels, predictions), classification_report(true_labels, predictions)
+    def test(self):
+        return self._evaluation(*self.batch_generator.test_data)
 
     def inference(self, input):
-
         # forward pass with argmax on output layer
         return np.argmax(self._forward_pass(input)['activations'][-1])
