@@ -11,7 +11,7 @@ class BatchGenerator():
 
         # load mnist data set
         self.training_data, self.validation_data, self.test_data = \
-            cPickle.load(gzip.open('./data/mnist.pkl.gz', 'rb'), encoding='iso-8859-1')
+            cPickle.load(gzip.open('../data/mnist.pkl.gz', 'rb'), encoding='iso-8859-1')
 
         # set up training data with one hot encoding
         self.training_data = list(zip(self.training_data[0], one_hot_encoding(self.training_data[1])))
